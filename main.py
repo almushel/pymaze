@@ -1,3 +1,5 @@
+from copy import copy
+from time import sleep
 from tkinter import Tk, BOTH, Canvas
 
 class Point:
@@ -39,12 +41,18 @@ class Rectangle:
 	@property
 	def bottom_right(self):
 		return self.position + self.dimensions
+	
+	def __str__(self):
+		return f"Rectangle(x: {self.x}, y: {self.y}, width: {self.width}, height: {self.height})"
+	
+	def __repr__(self):
+		return f"Rectangle({self.x}, {self.y}, {self.width}, {self.height})"
 
 class Cell:
 	# rect: Rectangle(x, y, width, height)
 	# walls: top, right, bottom, left	
 	def __init__(self, rect, window, walls=[True, True, True, True]):
-		self.rect = rect	
+		self.rect = copy(rect)
 		self.walls = walls
 		self.window = window
 
@@ -71,6 +79,43 @@ class Cell:
 		end 	= to_cell.rect.position + (to_cell.rect.dimensions/2)
 
 		self.window.draw_line(Line(start, end), stroke_color)
+	
+	def __str__(self):
+		return f"Cell( rect: {str(self.rect)}, Walls: {self.walls})"
+
+class Maze:
+	def __init__(self, position, rows, cols, cell_size, window):
+		self.position = position
+		self.rows = rows
+		self.cols = cols
+		self.cell_size = cell_size
+		self.window = window
+		self._create_cells()
+	
+	def _create_cells(self):
+		self._cells = [[] for r in range(self.cols)]
+
+		rect = Rectangle(
+			self.position.x, self.position.y,
+			self.cell_size.x, self.cell_size.y
+		)
+		for x in range(self.cols):
+			for y in range(self.rows):
+				self._cells[x].append(
+					Cell(rect, self.window)
+				)
+				rect.y += self.cell_size.y
+			rect.x += self.cell_size.x
+			rect.y = self.position.y
+	
+	def _draw_cell(self, x, y):
+		self._cells[x][y].draw("black")
+		self._animate()
+	
+	def _animate(self):
+		self.window.redraw()
+		sleep(1/60)
+
 
 class Window:
 	def __init__(self, width, height):
@@ -101,13 +146,17 @@ class Window:
 def main():
 	win = Window(800, 600)
 	
-	cell1 = Cell(Rectangle(25, 25, 100, 100), win, walls=[True, False, True, True])
-	cell1.draw("red")
+	maze = Maze(
+		Point(1,1),
+		10, 10,
+		Point(25, 25),
+		win
+	)
 
-	cell2 = Cell(Rectangle(125, 25, 100, 100), win, walls=[True, True, True, False])
-	cell2.draw("green")
+	for x in range(maze.rows):
+		for y in range(maze.cols):
+			maze._draw_cell(x, y)
 
-	cell1.draw_move(cell2)
 
 	win.wait_for_close()
 
