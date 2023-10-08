@@ -51,14 +51,15 @@ class Rectangle:
 class Cell:
 	def __init__(self, rect, window=None, walls=[True, True, True, True]):
 		self.rect = copy(rect)
-		self.walls = walls
+		self.walls = copy(walls)
 		self.window = window
 
 	def set_wall_by_name(self, name, val):
 		names = ["top", "right", "bottom", "left"]
 		if name in names:
 			self.walls[ names.index(name) ] = bool(val)
-		raise Exception("Invalid wall name")
+		else:
+			raise Exception("Invalid wall name")
 
 	def draw(self, stroke_color):
 		top_left = self.rect.position
@@ -95,15 +96,17 @@ class Maze:
 		self.cell_size = cell_size
 		self.window = window
 		self._create_cells()
+		self._break_entrance_and_exit()
 	
 	def _create_cells(self):
-		self._cells = [[] for r in range(self.cols)]
+		self._cells = []
 
 		rect = Rectangle(
 			self.position.x, self.position.y,
 			self.cell_size.x, self.cell_size.y
 		)
 		for x in range(self.cols):
+			self._cells.append([])
 			for y in range(self.rows):
 				self._cells[x].append(
 					Cell(rect, self.window)
@@ -112,9 +115,15 @@ class Maze:
 			rect.x += self.cell_size.x
 			rect.y = self.position.y
 	
+	def _break_entrance_and_exit(self):
+		self._cells[0][0].set_wall_by_name("top", False)
+		self._cells[self.cols-1][self.rows-1].set_wall_by_name("bottom", False)
+		if self.window is not None:
+			self._cells[0][0].draw("green")
+			self._cells[self.cols-1][self.rows-1].draw("green")
+
 	def _draw_cell(self, x, y):
 		self._cells[x][y].draw("black")
-		self._animate()
 	
 	def _animate(self):
 		self.window.redraw()
