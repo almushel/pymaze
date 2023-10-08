@@ -1,4 +1,4 @@
-from numbers import Number
+import random
 from copy import copy
 from time import sleep
 from tkinter import Tk, BOTH, Canvas
@@ -53,6 +53,7 @@ class Cell:
 		self.rect = copy(rect)
 		self.walls = copy(walls)
 		self.window = window
+		self.visited = False
 
 	def set_wall_by_name(self, name, val):
 		names = ["top", "right", "bottom", "left"]
@@ -89,7 +90,7 @@ class Cell:
 		return f"Cell( rect: {str(self.rect)}, Walls: {self.walls})"
 
 class Maze:
-	def __init__(self, position, rows, cols, cell_size, window=None):
+	def __init__(self, position, rows, cols, cell_size, window=None, seed=None):
 		self.position = position
 		self.rows = rows
 		self.cols = cols
@@ -97,6 +98,11 @@ class Maze:
 		self.window = window
 		self._create_cells()
 		self._break_entrance_and_exit()
+		if seed:
+			random.seed(seed)
+
+		self.__paths = self._create_path_r(0,0)
+		self.__path_index = 0
 	
 	def _create_cells(self):
 		self._cells = []
@@ -118,16 +124,61 @@ class Maze:
 	def _break_entrance_and_exit(self):
 		self._cells[0][0].set_wall_by_name("top", False)
 		self._cells[self.cols-1][self.rows-1].set_wall_by_name("bottom", False)
-		if self.window is not None:
-			self._cells[0][0].draw("green")
-			self._cells[self.cols-1][self.rows-1].draw("green")
+
+	def _create_path_r(self, x, y):
+		visited = []
+		current_cell = self._cells[x][y]
+		current_cell.visited = True
+
+		directions = {
+			"left": 	Point(x-1,y),
+			"top": 		Point(x,y-1),
+			"right": 	Point(x+1,y),
+			"bottom": 	Point(x,y+1),
+		}
+		keys = []
+
+		for key in directions:
+			d = directions[key]
+			if (d.x in range(self.cols) and d.y in range(self.rows)): 
+				keys.append(key)
+		
+		while len(keys):
+			key = random.choice(keys)
+			nx, ny = directions[key].x, directions[key].y
+			next_cell = self._cells[nx][ny]
+			
+			if next_cell.visited:
+				keys.remove(key)
+				continue
+
+			current_cell.set_wall_by_name(key, False)
+
+			if key == "left": key = "right"
+			elif key == "right": key = "left" 
+			elif key == "top": key = "bottom"
+			elif key == "bottom": key = "top"
+
+			self._cells[nx][ny].set_wall_by_name(key, False)
+			visited += [Point(x,y)] + self._create_path_r(nx, ny)
+
+		return visited
 
 	def _draw_cell(self, x, y):
 		self._cells[x][y].draw("black")
-	
-	def _animate(self):
+
+	def draw(self):
+		if self.__path_index < len(self.__paths):
+			next_cell = self.__paths[self.__path_index]
+			self._draw_cell(next_cell.x, next_cell.y)	
+			self.__path_index += 1
+		
+		if self.__path_index == len(self.__paths):
+			self.__path_index += 1
+			for x in range(self.cols):
+				for y in range(self.rows):
+					self._draw_cell(x,y)
 		self.window.redraw()
-		sleep(1/60)
 
 
 class Window:
@@ -135,18 +186,14 @@ class Window:
 		self.__root = Tk()
 		self.__root.title = "Maze Solver"
 		self.__root.protocol("WM_DELETE_WINDOW", self.close)
-		self.canvas = Canvas()
+#		self.__root.geometry(f"{width}x{height}")
+		self.canvas = Canvas(width=width, height=height)
 		self.canvas.pack()
-		self.running = False
+		self.running = True
 	
 	def redraw(self):
 		self.__root.update_idletasks()
 		self.__root.update()
-
-	def wait_for_close(self):
-		self.running = True
-		while self.running:
-			self.redraw()
 
 	def close(self):
 		self.running = False
