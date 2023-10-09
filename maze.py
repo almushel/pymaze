@@ -103,6 +103,7 @@ class Maze:
 
 		self.__paths = self._create_path_r(0,0)
 		self.__path_index = 0
+		self._reset_cells_visited()
 	
 	def _create_cells(self):
 		self._cells = []
@@ -125,8 +126,8 @@ class Maze:
 		self._cells[0][0].set_wall_by_name("top", False)
 		self._cells[self.cols-1][self.rows-1].set_wall_by_name("bottom", False)
 
-	def _create_path_r(self, x, y):
-		visited = []
+	def _create_path_r(self, x, y, path=[]):
+		path.append(Point(x,y))
 		current_cell = self._cells[x][y]
 		current_cell.visited = True
 
@@ -160,9 +161,14 @@ class Maze:
 			elif key == "bottom": key = "top"
 
 			self._cells[nx][ny].set_wall_by_name(key, False)
-			visited += [Point(x,y)] + self._create_path_r(nx, ny)
 
-		return visited
+			self._create_path_r(nx, ny, path)
+		return path
+	
+	def _reset_cells_visited(self):
+		for x in self._cells:
+			for y in x:
+				y.visited = False
 
 	def _draw_cell(self, x, y):
 		self._cells[x][y].draw("black")
