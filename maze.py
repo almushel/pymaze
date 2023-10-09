@@ -13,6 +13,13 @@ class Point:
 	
 	def __truediv__(self, val):
 		return Point(self.x / val, self.y / val)
+	
+	def __str__(self):
+		return f"Point(x: {self.x}, y: {self.y})"
+	
+	def __repr__(self):
+		return f"Point({self.x}, {self.y})"
+
 
 class Line:
 	def __init__(self, start, end):
@@ -78,7 +85,7 @@ class Cell:
 			self.window.draw_line(Line(bottom_left, top_left), stroke_color)
 
 	def draw_move(self, to_cell, undo=False):
-		stroke_color="gray"
+		stroke_color = "green"
 		if undo: stroke_color = "red"
 
 		start 	= self.rect.position + (self.rect.dimensions/2)
@@ -88,6 +95,15 @@ class Cell:
 	
 	def __str__(self):
 		return f"Cell( rect: {str(self.rect)}, Walls: {self.walls})"
+
+class MazeNode:
+	def __init__(self, x, y, parent):
+		self.parent = parent
+		self.x = x
+		self.y = y
+		self.neighbors = []
+		self.children = []
+
 
 class Maze:
 	def __init__(self, position, rows, cols, cell_size, window=None, seed=None):
@@ -101,8 +117,8 @@ class Maze:
 		if seed:
 			random.seed(seed)
 
-		self.__paths = self._create_path_r(0,0)
-		self.__path_index = 0
+		self._paths = self._create_path_r(0,0)
+		self._path_index = 0
 		self._reset_cells_visited()
 	
 	def _create_cells(self):
@@ -169,18 +185,70 @@ class Maze:
 		for x in self._cells:
 			for y in x:
 				y.visited = False
+	
+	def get_cell_exits(self, x, y):
+		result = []
+
+		neighbors = [
+			Point(x,y-1),
+			Point(x+1,y),
+			Point(x,y+1),
+			Point(x-1,y)
+		]
+
+		cell = self._cells[x][y]
+		for w in range(len(cell.walls)):
+			nw = neighbors[w]
+			if nw.x < 0 or nw.x >= self.cols or nw.y < 0 or nw.y >= self.rows: 
+				continue
+			elif not cell.walls[w]:
+				result.append(nw)
+
+		return result
+
+	def solve(self):
+		result = []
+		current = MazeNode(0,0, None)
+		current.neighbors = self.get_cell_exits(0,0)
+		found = False
+
+		while (current):
+			if current.x == self.cols-1 and current.y == self.rows-1:
+				found = True
+			
+			if (found):
+				result.append(Point(current.x, current.y))
+				current = current.parent
+			elif current.neighbors:
+				n = current.neighbors.pop()
+				neighbor = self._cells[n.x][n.y]
+				if not neighbor.visited:
+					next_node = MazeNode(n.x, n.y, current)
+					
+					neighbor.visited = True
+					
+					next_node.neighbors = self.get_cell_exits(next_node.x, next_node.y)
+					current.children.append(next_node)
+					current = next_node
+			else:
+				current = current.parent
+		if not found:
+			return None
+		
+		result.reverse()
+		return result
 
 	def _draw_cell(self, x, y):
 		self._cells[x][y].draw("black")
 
 	def draw(self):
-		if self.__path_index < len(self.__paths):
-			next_cell = self.__paths[self.__path_index]
+		if self._path_index < len(self._paths):
+			next_cell = self._paths[self._path_index]
 			self._draw_cell(next_cell.x, next_cell.y)	
-			self.__path_index += 1
+			self._path_index += 1
 		
-		if self.__path_index == len(self.__paths):
-			self.__path_index += 1
+		if self._path_index == len(self._paths):
+			self._path_index += 1
 			for x in range(self.cols):
 				for y in range(self.rows):
 					self._draw_cell(x,y)
@@ -192,7 +260,6 @@ class Window:
 		self.__root = Tk()
 		self.__root.title = "Maze Solver"
 		self.__root.protocol("WM_DELETE_WINDOW", self.close)
-#		self.__root.geometry(f"{width}x{height}")
 		self.canvas = Canvas(width=width, height=height)
 		self.canvas.pack()
 		self.running = True
