@@ -117,7 +117,7 @@ class Maze:
 		if seed:
 			random.seed(seed)
 
-		self._paths = self._create_path_r(0,0)
+		self._paths = self.generate()
 		self._path_index = 0
 		self._reset_cells_visited()
 	
@@ -141,68 +141,65 @@ class Maze:
 	def _break_entrance_and_exit(self):
 		self._cells[0][0].set_wall_by_name("top", False)
 		self._cells[self.cols-1][self.rows-1].set_wall_by_name("bottom", False)
-
-	def _create_path_r(self, x, y, path=[]):
-		path.append(Point(x,y))
-		current_cell = self._cells[x][y]
-		current_cell.visited = True
-
-		directions = {
-			"left": 	Point(x-1,y),
-			"top": 		Point(x,y-1),
-			"right": 	Point(x+1,y),
-			"bottom": 	Point(x,y+1),
-		}
-		keys = []
-
-		for key in directions:
-			d = directions[key]
-			if (d.x in range(self.cols) and d.y in range(self.rows)): 
-				keys.append(key)
-		
-		while len(keys):
-			key = random.choice(keys)
-			nx, ny = directions[key].x, directions[key].y
-			next_cell = self._cells[nx][ny]
-			
-			if next_cell.visited:
-				keys.remove(key)
-				continue
-
-			current_cell.set_wall_by_name(key, False)
-
-			if key == "left": key = "right"
-			elif key == "right": key = "left" 
-			elif key == "top": key = "bottom"
-			elif key == "bottom": key = "top"
-
-			self._cells[nx][ny].set_wall_by_name(key, False)
-
-			self._create_path_r(nx, ny, path)
-		return path
 	
 	def _reset_cells_visited(self):
 		for x in self._cells:
 			for y in x:
 				y.visited = False
-	
-	def get_cell_exits(self, x, y):
+
+	def get_valid_neighbors(self, x, y):
 		result = []
 
-		neighbors = [
-			Point(x,y-1),
-			Point(x+1,y),
-			Point(x,y+1),
-			Point(x-1,y)
-		]
+		for n in range(-1, 2, 2):
+			if (x+n) in range(self.cols):
+				result.append(Point(x+n, y))
+			else: result.append(None)
+			
+			if (y+n) in range(self.rows):
+				result.append(Point(x, y+n))
+			else: result.append(None)
 
-		cell = self._cells[x][y]
-		for w in range(len(cell.walls)):
-			nw = neighbors[w]
-			if nw.x < 0 or nw.x >= self.cols or nw.y < 0 or nw.y >= self.rows: 
-				continue
-			elif not cell.walls[w]:
-				result.append(nw)
+		result.append( result.pop(0) )
+		return result
+
+	def get_cell_exits(self, x, y):
+		neighbors = self.get_valid_neighbors(x,y)
+		filtered = filter(
+			lambda n: n and not self._cells[x][y].walls[neighbors.index(n)],
+			neighbors
+		)
+
+		result = list(filtered)
+
+		return result
+	
+	def generate(self):
+		result = [Point(0,0)]
+		current = MazeNode(0,0, None)
+		current.neighbors = self.get_valid_neighbors(0,0)
+
+		while (current):
+			current_cell = self._cells[current.x][current.y]
+			neighbors_to_visit = list( filter(lambda n: n and not self._cells[n.x][n.y].visited, current.neighbors))
+			
+			if neighbors_to_visit:
+				n = random.choice(neighbors_to_visit)
+				neighbor = self._cells[n.x][n.y]
+				if not neighbor.visited:
+					result.append(n)
+					neighbor.visited = True
+
+					wall_index = current.neighbors.index(n)
+					current_cell.walls[ wall_index ] = False
+					neighbor.walls[(wall_index+2) % 4] = False		
+					
+					next_node = MazeNode(n.x, n.y, current)
+					next_node.neighbors = self.get_valid_neighbors(n.x, n.y)
+
+					current.children.append(next_node)
+					current = next_node
+			else:
+				current = current.parent
 
 		return result
 
@@ -232,8 +229,6 @@ class Maze:
 					current = next_node
 			else:
 				current = current.parent
-		if not found:
-			return None
 		
 		result.reverse()
 		return result

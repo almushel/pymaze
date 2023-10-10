@@ -7,7 +7,7 @@ FRAME_TIME = 1/60
 def main():
 	win = Window(800, 600)
 	
-	rows = cols = 50
+	rows = cols = 75
 	rect = Rectangle(5, 5, (SCREEN_W-10)/cols, (SCREEN_H-10)/rows)
 
 	maze = Maze(

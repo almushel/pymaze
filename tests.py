@@ -64,13 +64,11 @@ class Tests(unittest.TestCase):
 			for y in x:
 				self.assertEqual(y.visited, False)
 
-# NOTE: Recursion depth exceeded very quickly with a large maze
-'''
+
 	def test_maze_size_stress(self):
 		cols = random.randint(5, 200)
 		rows = random.randint(5, 200)
 		m = Maze(Point(0,0), rows,cols, Point(CELL_SIZE,CELL_SIZE))
-'''
 
 
 if __name__ == "__main__":
